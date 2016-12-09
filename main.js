@@ -1,3 +1,5 @@
+//author: Jacob Moore
+
 var playerUnits = [];
 var computerUnits = [];
 var allUnits = [];
@@ -55,7 +57,7 @@ function setUpGameboard() {
     }else if (i < thirdQuarter){
       document.getElementById(affinity[i]).style.backgroundColor = "#9933FF";
     }else{
-      document.getElementById(affinity[i]).style.backgroundColor = "yellow";
+      document.getElementById(affinity[i]).style.backgroundColor = "#FFFF00";
     }
   }
 
@@ -129,7 +131,7 @@ function setUpUnits() {
 }
 
 function checkAction(element){
-  if (element.innerHTML != "X" && !selectPosition){
+  if (element.innerHTML != "X" && !selectPosition && currentElement == ""){
     var foundPlayerUnit = false;
     var foundComputerUnit = false;
     var unitIndex = 0;
@@ -162,10 +164,6 @@ function checkAction(element){
       "<br>Speed: " + computerUnits[unitIndex].speed + "<br>Range: " + computerUnits[unitIndex].range + "<br>Life: " + computerUnits[unitIndex].life +"<br>Affinity: "  + computerUnits[unitIndex].affinity + "<br>Owner: Computer";
       computerSetObject = computerUnits[unitIndex];
 
-    }else{
-      if (playerUnitSet) {
-
-      }
     }
   }else{
     if(selectPosition && element.innerHTML == "X" && (element.id % 50) <= 20){
@@ -180,7 +178,7 @@ function checkAction(element){
         document.getElementById("setUnitPosition").innerHTML = "SET UNIT ON LEFT HALF" + "<br>Name: " + playerUnits[numberOfUnitsPlaced].name + "<br>Attack: " + playerUnits[numberOfUnitsPlaced].attack + "<br>Defense: " + playerUnits[numberOfUnitsPlaced].defense +
         "<br>Speed: " + playerUnits[numberOfUnitsPlaced].speed + "<br>Range: " + playerUnits[numberOfUnitsPlaced].range + "<br>Life: " + playerUnits[numberOfUnitsPlaced].life +"<br>Affinity: "  + playerUnits[numberOfUnitsPlaced].affinity + "<br>Owner: Player";
       }
-    }else if (document.getElementById("playerSelectedInfo").innerHTML != "" && playerTurns > 0) {
+    }else if (document.getElementById("playerSelectedInfo").innerHTML != "" && playerTurns > 0 && element.innerHTML == "X") {
       if (currentElement != ""){
         currentElement.style.backgroundColor = currentElementBackground;
       }
@@ -192,7 +190,11 @@ function checkAction(element){
       document.getElementById("confirmMove").style.display = "inline";
       document.getElementById("confirmPlacement").style.display = "inline";
     }
-
+  }
+  if (document.getElementById("playerSelectedInfo").innerHTML != "" && document.getElementById("computerSelectedInfo").innerHTML != "" && playerTurns > 0){
+    document.getElementById("confirmMove").style.display = "none";
+    document.getElementById("confirmAttack").style.display = "inline";
+    document.getElementById("confirmPlacement").style.display = "inline";
   }
 }
 
@@ -220,7 +222,7 @@ function createArmySelection(){
         var color = "#FF3A3A";
         break;
       case "yellow":
-        var color = "yellow";
+        var color = "#FFFF00";
         break;
       case "purple":
         var color = "#9933FF";
@@ -310,9 +312,8 @@ function selectPositions () {
 function moveUnit(){
   var moveElement = currentElement;
   var unit = playerSetObject;
-  var unitLocation = getCoordinate(unit.position);
-  var moveElementLocation = getCoordinate(parseInt(moveElement.id));
-  var distance = Math.abs(unitLocation.x - moveElementLocation.x) + Math.abs(unitLocation.y - moveElementLocation.y);
+  var distance = getDistance(moveElement, unit);
+
   if (distance <= unit.speed){
     document.getElementById("confirmMove").style.display = "none";
     document.getElementById("confirmPlacement").style.display = "none";
@@ -334,6 +335,61 @@ function moveUnit(){
     currentElement = "";
   }
 
+}
+
+function playerAttack(){
+  var distance = getDistance(document.getElementById(playerSetObject.position), computerSetObject);
+  if(distance > playerSetObject.range){
+    window.alert("Out of range.");
+    clearSelections();
+    return;
+  }
+
+  playerTurns--;
+  document.getElementById("setUnitPosition").innerHTML = "Actions: " + playerTurns;
+  var affinity = getAffinity();
+
+  var attack = playerSetObject.attack;
+  var defense = computerSetObject.defense;
+  var attackHits = 0;
+  var defenseHits = 0;
+
+  if (affinity.playerAffinity == document.getElementById(playerSetObject.position).style.backgroundColor){
+    attack += 2;
+  }
+
+  if (affinity.computerAffinity == document.getElementById(computerSetObject.position).style.backgroundColor){
+    defense += 2;
+  }
+
+  for(var i = 0; i < attack; i++){
+    var random = getRandom();
+    if (random == 1){
+      attackHits++;
+    }
+  }
+
+  for(var i = 0; i < defense; i++){
+    var random = getRandom();
+    if (random == 0){
+      defenseHits++;
+    }
+  }
+  var damage = attackHits - defenseHits;
+
+  if (damage > 0){
+    computerSetObject.life = computerSetObject.life - damage;
+    if (computerSetObject.life <= 0){
+      document.getElementById(computerSetObject.position).innerHTML = "X";
+      for(var i = 0; i < computerUnits.length; i++){
+        if(computerUnits[i].position == computerSetObject.position){
+          computerUnits.splice(i,1);
+          break;
+        }
+      }
+    }
+  }
+  clearSelections();
 }
 
 function getCoordinate(position){
@@ -367,6 +423,139 @@ function clearSelections(){
   document.getElementById("confirmPlacement").style.display = "none";
 }
 
+function getDistance(element, unit){
+  var unitLocation = getCoordinate(unit.position);
+  var elementLocation = getCoordinate(parseInt(element.id));
+  return Math.abs(unitLocation.x - elementLocation.x) + Math.abs(unitLocation.y - elementLocation.y);
+}
+
+function getAffinity() {
+  switch(playerSetObject.affinity){
+    case "red":
+      var playerAffinity = hexToRgb("#FF3A3A");
+      break;
+    case "yellow":
+      var playerAffinity = hexToRgb("#FFFF00");
+      break;
+    case "purple":
+      var playerAffinity = hexToRgb("#9933FF");
+      break;
+    case "blue":
+      var playerAffinity = hexToRgb("#3333FF");
+      break;
+  }
+
+  switch(computerSetObject.affinity){
+    case "red":
+      var computerAffinity = hexToRgb("#FF3A3A");
+      break;
+    case "yellow":
+      var computerAffinity = hexToRgb("#FFFF00");
+      break;
+    case "purple":
+      var computerAffinity = hexToRgb("#9933FF");
+      break;
+    case "blue":
+      var computerAffinity = hexToRgb("#3333FF");
+      break;
+  }
+  return {playerAffinity: "rgb(" + playerAffinity.r + ", " + playerAffinity.g + ", " +playerAffinity.b + ")", computerAffinity: "rgb(" + computerAffinity.r + ", " + computerAffinity.g + ", " +computerAffinity.b + ")"};
+}
+
+function getRandom() {
+  return Math.floor(Math.random() * 2);
+}
+
+function componentToHex(c) {
+    var hex = c.toString(16);
+    return hex.length == 1 ? "0" + hex : hex;
+}
+
+function rgbToHex(r, g, b) {
+    return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+}
+
+function hexToRgb(hex) {
+    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : null;
+}
+
+function computerTurn(){
+  while(computerTurns > 0){
+    var randomIndex = Math.floor(math.random() * computerUnits.length);
+    var computerObject = computerUnits[randomIndex];
+    var distance = [];
+    for(var i = 0; i < playerUnits.length; i++){
+      distance.push(getDistance(document.getElementById(playerUnits[i].position), computerObject));
+    }
+
+    var smallestDistanceIndex = -1;
+    for (var i = 1; i < distance.length; i++){
+      if (distance[i -1] < distance[i]){
+        smallestDistanceIndex = i - 1;
+      }else{
+        smallestDistanceIndex = i;
+      }
+    }
+
+    var playerObject = playerUnits[smallestDistanceIndex];
+    var distanceBetween = distance[smallestDistanceIndex];
+    if (distanceBetween <= computerObject.range){
+      computerAttack(playerObject, computerObject);
+    }else{
+      computerMove();
+    }
+
+  }
+}
+
+function computerAttack(playerObject, computerObject) {
+  var affinity = getAffinity();
+  var attack = computerObject.attack;
+  var defense = playerObject.defense;
+  var attackHits = 0;
+  var defenseHits = 0;
+
+  if (affinity.playerAffinity == document.getElementById(playerSetObject.position).style.backgroundColor){
+    attack += 2;
+  }
+
+  if (affinity.computerAffinity == document.getElementById(computerSetObject.position).style.backgroundColor){
+    defense += 2;
+  }
+
+  for(var i = 0; i < attack; i++){
+    var random = getRandom();
+    if (random == 1){
+      attackHits++;
+    }
+  }
+
+  for(var i = 0; i < defense; i++){
+    var random = getRandom();
+    if (random == 0){
+      defenseHits++;
+    }
+  }
+  var damage = attackHits - defenseHits;
+
+  if (damage > 0){
+    computerSetObject.life = computerSetObject.life - damage;
+    if (computerSetObject.life <= 0){
+      document.getElementById(computerSetObject.position).innerHTML = "X";
+      for(var i = 0; i < computerUnits.length; i++){
+        if(computerUnits[i].position == computerSetObject.position){
+          computerUnits.splice(i,1);
+          break;
+        }
+      }
+    }
+  }
+}
 
 //cookie functions courtesy of w3schools
 function setCookie(cname, cvalue, exdays) {
