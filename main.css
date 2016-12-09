@@ -1,0 +1,21 @@
+#gameBoard {
+  font-size: 125%;
+  text-align: center;
+  font-family: "Courier New", Courier, monospace;
+  cursor: pointer;
+}
+
+#unitInfo,#playerSelectedInfo,#computerSelectedInfo {
+  font-size: 125%;
+  text-align: center;
+}
+
+.unit {
+  font-size: 75%;
+  text-align: center;
+}
+
+#confirmMove, #confirmAttack, #confirmPlacement {
+  text-align: center;
+  display: none;
+}
