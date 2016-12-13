@@ -13,8 +13,8 @@ var computerSetObject = {};
 var computerUnitSet = false;
 var playerUnitSet = false;
 
-var playerTurns = 5;
-var computerTurns = 5;
+var playerTurns = 4;
+var computerTurns = 4;
 
 var numberOfUnitsPlaced = 0;
 var currentElement = "";
@@ -172,7 +172,7 @@ function checkAction(element){
       numberOfUnitsPlaced++;
       if (numberOfUnitsPlaced >= playerUnits.length) {
         selectPosition = false;
-        document.getElementById("setUnitPosition").innerHTML = "Actions: 5";
+        document.getElementById("setUnitPosition").innerHTML = "Actions: 4";
         selectPositions();
       }else{
         document.getElementById("setUnitPosition").innerHTML = "SET UNIT ON LEFT HALF" + "<br>Name: " + playerUnits[numberOfUnitsPlaced].name + "<br>Attack: " + playerUnits[numberOfUnitsPlaced].attack + "<br>Defense: " + playerUnits[numberOfUnitsPlaced].defense +
@@ -208,7 +208,7 @@ function unit(name, attack, defense, speed, range, life, affinity) {
   this.range = range;
   this.life = life;
   this.affinity = affinity;
-  this.points = this.attack * 10 + this.defense * 5 + this.speed * 5 + this.range * 5 + this.life * this.defense + this.life * 2;
+  this.points = this.attack * 12 + this.defense * 5 + this.speed * 3 + this.range * 10 + this.life * this.defense + this.life * 2;
 }
 
 function createArmySelection(){
@@ -258,6 +258,7 @@ function checkTotalPoints() {
       unitSelected[i] = parseInt(document.getElementById("input" + tmp).value);
     }
      setCookie("player", unitSelected, 1);
+     sessionStorage.playerTotalPoints = points;
     window.location.href = "gameboard.html";
   }else{
     alert("Max points is 1500");
@@ -286,6 +287,8 @@ function checkTroops() {
     computerPoints += computerUnit.points;
     computerUnits.push(computerUnit);
   }
+
+  sessionStorage.computerTotalPoints = computerPoints;
 
   document.getElementById("setUnitPosition").innerHTML = "SET UNIT ON LEFT HALF" + "<br>Name: " + playerUnits[0].name + "<br>Attack: " + playerUnits[0].attack + "<br>Defense: " + playerUnits[0].defense +
   "<br>Speed: " + playerUnits[0].speed + "<br>Range: " + playerUnits[0].range + "<br>Life: " + playerUnits[0].life +"<br>Affinity: "  + playerUnits[0].affinity + "<br>Owner: Player";
@@ -326,6 +329,10 @@ function moveUnit(){
     document.getElementById("setUnitPosition").innerHTML = "Actions: " + playerTurns;
     currentElementBackground = "";
     currentElement = "";
+    updateSummary(playerSetObject.name + " moved " + distance + " spaces", 1);
+    if (playerTurns <= 0){
+      computerTurn();
+    }
   }else{
     document.getElementById("confirmMove").style.display = "none";
     document.getElementById("confirmPlacement").style.display = "none";
@@ -347,7 +354,7 @@ function playerAttack(){
 
   playerTurns--;
   document.getElementById("setUnitPosition").innerHTML = "Actions: " + playerTurns;
-  var affinity = getAffinity();
+  var affinity = getAffinity(playerSetObject,computerSetObject);
 
   var attack = playerSetObject.attack;
   var defense = computerSetObject.defense;
@@ -377,9 +384,11 @@ function playerAttack(){
   }
   var damage = attackHits - defenseHits;
 
+  var dead = false;
   if (damage > 0){
     computerSetObject.life = computerSetObject.life - damage;
     if (computerSetObject.life <= 0){
+      dead = true;
       document.getElementById(computerSetObject.position).innerHTML = "X";
       for(var i = 0; i < computerUnits.length; i++){
         if(computerUnits[i].position == computerSetObject.position){
@@ -388,8 +397,28 @@ function playerAttack(){
         }
       }
     }
+  }else{
+    damage = 0;
+  }
+  if (dead){
+    updateSummary(playerSetObject.name + " attacked " + computerSetObject.name + " and defeated them with " + damage + " damage", 1);
+  }else{
+    updateSummary(playerSetObject.name + " attacked " + computerSetObject.name + " and did " + damage + " damage", 1);
+  }
+
+  if(computerUnits.length == 0){
+    sessionStorage.computerRemainingPoints = 0;
+    var playerRemainingPoints = 0;
+    for(var i = 0; i < playerUnits.length; i++) {
+      playerRemainingPoints += playerUnits[i].points;
+    }
+    sessionStorage.playerRemainingPoints = playerRemainingPoints;
+    window.location.href = "summary.html";
   }
   clearSelections();
+  if (playerTurns <= 0) {
+    computerTurn();
+  }
 }
 
 function getCoordinate(position){
@@ -429,8 +458,8 @@ function getDistance(element, unit){
   return Math.abs(unitLocation.x - elementLocation.x) + Math.abs(unitLocation.y - elementLocation.y);
 }
 
-function getAffinity() {
-  switch(playerSetObject.affinity){
+function getAffinity(playerObject, computerObject) {
+  switch(playerObject.affinity){
     case "red":
       var playerAffinity = hexToRgb("#FF3A3A");
       break;
@@ -445,7 +474,7 @@ function getAffinity() {
       break;
   }
 
-  switch(computerSetObject.affinity){
+  switch(computerObject.affinity){
     case "red":
       var computerAffinity = hexToRgb("#FF3A3A");
       break;
@@ -486,45 +515,52 @@ function hexToRgb(hex) {
 
 function computerTurn(){
   while(computerTurns > 0){
-    var randomIndex = Math.floor(math.random() * computerUnits.length);
+    var randomIndex = Math.floor(Math.random() * computerUnits.length);
     var computerObject = computerUnits[randomIndex];
     var distance = [];
     for(var i = 0; i < playerUnits.length; i++){
-      distance.push(getDistance(document.getElementById(playerUnits[i].position), computerObject));
+      distance.push({distance: getDistance(document.getElementById(playerUnits[i].position), computerObject), object: playerUnits[i]});
     }
 
-    var smallestDistanceIndex = -1;
+    var smallestDistanceIndex = 0;
+    var smallestDistance = distance[0].distance
     for (var i = 1; i < distance.length; i++){
-      if (distance[i -1] < distance[i]){
-        smallestDistanceIndex = i - 1;
-      }else{
+      if (distance[i].distance < smallestDistance){
+        smallestDistance = distance[i].distance;
         smallestDistanceIndex = i;
       }
     }
 
-    var playerObject = playerUnits[smallestDistanceIndex];
-    var distanceBetween = distance[smallestDistanceIndex];
+    var playerObject = distance[smallestDistanceIndex].object;
+    var distanceBetween = distance[smallestDistanceIndex].distance;
+
     if (distanceBetween <= computerObject.range){
       computerAttack(playerObject, computerObject);
+
     }else{
-      computerMove();
+      computerMove(playerObject, computerObject);
+
     }
 
   }
+  computerTurns = 4;
+  playerTurns = 4;
+  document.getElementById("setUnitPosition").innerHTML = "Actions: " + playerTurns;
 }
 
 function computerAttack(playerObject, computerObject) {
-  var affinity = getAffinity();
+  computerTurns--;
+  var affinity = getAffinity(playerObject, computerObject);
   var attack = computerObject.attack;
   var defense = playerObject.defense;
   var attackHits = 0;
   var defenseHits = 0;
 
-  if (affinity.playerAffinity == document.getElementById(playerSetObject.position).style.backgroundColor){
+  if (affinity.computerAffinity == document.getElementById(playerObject.position).style.backgroundColor){
     attack += 2;
   }
 
-  if (affinity.computerAffinity == document.getElementById(computerSetObject.position).style.backgroundColor){
+  if (affinity.playerAffinity == document.getElementById(computerObject.position).style.backgroundColor){
     defense += 2;
   }
 
@@ -542,20 +578,114 @@ function computerAttack(playerObject, computerObject) {
     }
   }
   var damage = attackHits - defenseHits;
-
+  var dead = false;
   if (damage > 0){
-    computerSetObject.life = computerSetObject.life - damage;
-    if (computerSetObject.life <= 0){
-      document.getElementById(computerSetObject.position).innerHTML = "X";
-      for(var i = 0; i < computerUnits.length; i++){
-        if(computerUnits[i].position == computerSetObject.position){
-          computerUnits.splice(i,1);
+    playerObject.life = playerObject.life - damage;
+    if (playerObject.life <= 0){
+      document.getElementById(playerObject.position).innerHTML = "X";
+      for(var i = 0; i < playerUnits.length; i++){
+        if(playerUnits[i].position == playerObject.position){
+          playerUnits.splice(i,1);
+          dead = true;
           break;
         }
       }
     }
+  }else{
+    damage = 0;
+  }
+
+  if (dead){
+    updateSummary(computerObject.name + " attacked " + playerObject.name + " and defeated them with " + damage + " damage", 2);
+  }else{
+    updateSummary(computerObject.name + " attacked " + playerObject.name + " and did " + damage + " damage", 2);
+  }
+  if(playerUnits.length == 0){
+    sessionStorage.playerRemainingPoints = 0;
+    var computerRemainingPoints = 0;
+    for(var i = 0; i < computerUnits.length; i++) {
+      computerRemainingPoints += computerUnits[i].points;
+    }
+    sessionStorage.computerRemainingPoints = computerRemainingPoints;
+    window.location.href = "summary.html";
+  }
+
+}
+
+function computerMove(playerObject, computerObject){
+  computerTurns--;
+  var speed = computerObject.speed;
+  var moveDistance = 0;
+  var playerCoordinate = getCoordinate(playerObject.position);
+  while (speed > 0 && getDistance(document.getElementById(playerObject.position), computerObject) > 1){
+    var computerCoordinate = getCoordinate(computerObject.position);
+    if(playerCoordinate.x > computerCoordinate.x && document.getElementById(computerObject.position + 1).innerHTML == "X"){
+      document.getElementById(computerObject.position).innerHTML = "X";
+      document.getElementById(computerObject.position + 1).innerHTML = "<b>" + computerObject.attack + "</b>";
+      computerObject.position += 1;
+      speed--;
+      moveDistance++;
+    }else if (playerCoordinate.x < computerCoordinate.x && document.getElementById(computerObject.position - 1).innerHTML == "X"){
+      document.getElementById(computerObject.position).innerHTML = "X";
+      document.getElementById(computerObject.position - 1).innerHTML = "<b>" + computerObject.attack + "</b>";
+      computerObject.position -= 1;
+      speed--;
+      moveDistance++;
+    }else if (playerCoordinate.y > computerCoordinate.y && document.getElementById(computerObject.position + 50).innerHTML == "X"){
+      document.getElementById(computerObject.position).innerHTML = "X";
+      document.getElementById(computerObject.position + 50).innerHTML = "<b>" + computerObject.attack + "</b>";
+      computerObject.position += 50;
+      speed--;
+      moveDistance++;
+    }else if (playerCoordinate.y < computerCoordinate.y && document.getElementById(computerObject.position - 50).innerHTML == "X"){
+      document.getElementById(computerObject.position).innerHTML = "X";
+      document.getElementById(computerObject.position - 50).innerHTML = "<b>" + computerObject.attack + "</b>";
+      computerObject.position -= 50;
+      speed--;
+      moveDistance++;
+    }else{
+      speed--;
+    }
+  }
+  if (moveDistance != 0){
+    updateSummary(computerObject.name + " moved " + moveDistance + " spaces", 2);
+  }else{
+    computerTurns++;
+  }
+
+}
+
+function updateSummary(newSummary, owner){
+  var summary2 = document.getElementById("summary2").innerHTML;
+  var summary3 = document.getElementById("summary3").innerHTML;
+  var summary4 = document.getElementById("summary4").innerHTML;
+  var summary5 = document.getElementById("summary5").innerHTML;
+
+  document.getElementById("summary1").innerHTML = summary2;
+  document.getElementById("summary1").style.backgroundColor = document.getElementById("summary2").style.backgroundColor;
+  document.getElementById("summary2").innerHTML = summary3;
+  document.getElementById("summary2").style.backgroundColor = document.getElementById("summary3").style.backgroundColor;
+  document.getElementById("summary3").innerHTML = summary4;
+  document.getElementById("summary3").style.backgroundColor = document.getElementById("summary4").style.backgroundColor;
+  document.getElementById("summary4").innerHTML = summary5;
+  document.getElementById("summary4").style.backgroundColor = document.getElementById("summary5").style.backgroundColor;
+  document.getElementById("summary5").innerHTML = newSummary;
+  if(owner == 1){
+    document.getElementById("summary5").style.backgroundColor = "lightGreen";
+  }else{
+    document.getElementById("summary5").style.backgroundColor = "#FF4D4D";
   }
 }
+
+function ending(){
+  if(sessionStorage.playerRemainingPoints == "0"){
+    document.getElementById("winOrLose").innerHTML = "DEFEAT!";
+  }else{
+    document.getElementById("winOrLose").innerHTML = "VICTORY!";
+  }
+  document.getElementById("playerSummary").innerHTML = "Player<br>Total Points: " + sessionStorage.playerTotalPoints + "<br>Remaining Points: " + sessionStorage.playerRemainingPoints;
+  document.getElementById("computerSummary").innerHTML = "Computer<br>Total Points: " + sessionStorage.computerTotalPoints + "<br>Remaining Points: " + sessionStorage.computerRemainingPoints;
+ }
 
 //cookie functions courtesy of w3schools
 function setCookie(cname, cvalue, exdays) {
